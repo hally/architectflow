@@ -3,6 +3,9 @@
 This validates the checked-in blueprint, NOT a per-request Terraform plan.
 No AWS credentials, provider mocking, or provisioning are involved.
 """
+from datetime import datetime, timezone
+import io
+import hashlib
 import json
 import os
 import subprocess
@@ -16,14 +19,55 @@ POLICY_DIR = ROOT / "policies" / "terraform"
 MODULES = {"secure-storage": ROOT / "terraform" / "modules" / "secure-storage"}
 
 
+def terraform_source_fingerprint(module_dir):
+    """Calculate a reproducible SHA-256 fingerprint of Terraform source files."""
+    digest = hashlib.sha256()
+    paths = sorted(module_dir.glob("*.tf"))
+
+    if not paths:
+        raise ValueError("No Terraform source files found")
+
+    for path in paths:
+        content = path.read_bytes()
+        filename = path.name.encode("utf-8")
+
+        digest.update(len(filename).to_bytes(4, "big"))
+        digest.update(filename)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+
+    return digest.hexdigest()
+
 def inspect_blueprint(blueprint):
     """Return (status, list_of_reasons); never approve on an error."""
+    evaluated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
     if blueprint not in MODULES:
-        return "Not implemented", ["No Terraform configuration check exists for this blueprint yet."]
+        return (
+            "Not implemented",
+            ["No Terraform configuration check exists for this blueprint yet."],
+            None,
+            evaluated_at,
+        )
 
     try:
         resources = {}
-        for path in sorted(MODULES[blueprint].glob("*.tf")):
+        digest = hashlib.sha256()
+        source_files = sorted(MODULES[blueprint].glob("*.tf"))
+        if not source_files:
+            raise ValueError("No Terraform source files found")
+        for path in source_files:
+            content = path.read_bytes()
+            filename = path.name.encode("utf-8")
+
+            digest.update(len(filename).to_bytes(4, "big"))
+            digest.update(filename)
+            digest.update(len(content).to_bytes(8, "big"))
+            digest.update(content)
+
+            parsed = hcl2.load(io.StringIO(content.decode("utf-8").replace("\r\n", "\n")))
+
+        for path in source_files:
             with path.open(encoding="utf-8") as stream:
                 parsed = hcl2.load(stream)
             for group in parsed.get("resource", []):
@@ -36,6 +80,7 @@ def inspect_blueprint(blueprint):
 
         if not resources:
             raise ValueError("No Terraform resources found")
+        source_sha256 = digest.hexdigest()
 
         result = subprocess.run(
             [OPA_EXECUTABLE, "eval", "-d", str(POLICY_DIR / "storage.rego"),
@@ -55,8 +100,19 @@ def inspect_blueprint(blueprint):
         if decision["allow"]:
             if reasons:
                 raise ValueError("Contradictory OPA decision")
-            return "Configuration validated", []
-        return "Configuration denied", sorted(reasons) or ["Blueprint denied by policy"]
+            return "Configuration validated", [], source_sha256, evaluated_at
+        return (
+            "Configuration denied",
+            sorted(reasons) or ["Blueprint denied by policy"],
+            source_sha256,
+            evaluated_at,
+        )
     except (OSError, ValueError, IndexError, KeyError, TypeError,
             subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        return "Configuration check error", [f"Unable to validate blueprint locally ({type(exc).__name__})."]
+        return (
+            "Configuration check error",
+            [f"Unable to validate blueprint locally ({type(exc).__name__})."],
+            None,
+            evaluated_at,
+        )
+

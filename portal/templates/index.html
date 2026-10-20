@@ -177,6 +177,14 @@
                           {% for reason in item["config_reasons_list"] %}
                             <div class="small text-danger mt-1">{{ reason }}</div>
                           {% endfor %}
+                          {% if item["terraform_source_sha256"] %}
+                            <details class="mt-2">
+                              <summary class="text-primary small">Source provenance</summary>
+                              <div class="small mt-1"><strong>SHA-256:</strong> <code style="overflow-wrap:anywhere">{{ item["terraform_source_sha256"] }}</code></div>
+                              <div class="small mt-1"><strong>Evaluated at:</strong> {{ item["terraform_evaluated_at"] }}</div>
+                              <div class="small muted mt-1">Fingerprint of the evaluated local .tf files; not an AWS deployment attestation.</div>
+                            </details>
+                          {% endif %}
                         {% else %}
                           <span class="badge text-bg-secondary">Not assessed (legacy)</span>
                         {% endif %}

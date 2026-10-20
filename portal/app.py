@@ -90,6 +90,9 @@ def initialize_database():
                        "planner_explanation", "planner_method"):
             if column not in existing_columns:
                 conn.execute(f"ALTER TABLE infrastructure_requests ADD COLUMN {column} TEXT")
+        for column in ("terraform_source_sha256", "terraform_evaluated_at"):
+            if column not in existing_columns:
+                conn.execute(f"ALTER TABLE infrastructure_requests ADD COLUMN {column} TEXT")
 
 
 def evaluate_policy(payload):
@@ -165,7 +168,7 @@ def home():
             })
             # Blueprint inspection is independent from the request policy.
             # It checks the checked-in module source, not planned AWS changes.
-            config_status, config_reasons = inspect_blueprint(blueprint)
+            config_status, config_reasons, terraform_sha, terraform_checked_at = inspect_blueprint(blueprint)
             planner = session.pop("architecture_recommendation", None)
             # Attribute a recommendation only if the selected blueprint matches.
             matched = (
@@ -180,14 +183,16 @@ def home():
                     (project_name, owner, blueprint, region, environment, budget,
                      notes, status, policy_reasons, config_status, config_reasons,
                      planner_requirements, planner_category, planner_blueprint,
-                     planner_explanation, planner_method, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     planner_explanation, planner_method, terraform_source_sha256,
+                     terraform_evaluated_at, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (project_name, owner, blueprint, region, environment, budget,
                      notes, status, json.dumps(reasons), config_status,
                      json.dumps(config_reasons),
                      audit.get("requirements"), audit.get("category"),
                      audit.get("recommended_blueprint"), audit.get("explanation"),
                      "LangGraph / deterministic rules v1" if matched else None,
+                     terraform_sha, terraform_checked_at,
                      datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
                 )
             flash(f"Request saved: {status}.", "success" if status == "Request policy approved" else "warning")
