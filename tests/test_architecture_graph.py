@@ -10,6 +10,11 @@ class ArchitectureGraphTests(unittest.TestCase):
         self.assertEqual(result["recommended_blueprint"], "secure-storage")
         self.assertEqual(result["category"], "storage")
 
+    def test_customer_documents_storage(self):
+        result = recommend("I need private encrypted storage for customer documents used by an internal application.")
+        self.assertEqual(result["category"], "storage")
+        self.assertEqual(result["recommended_blueprint"], "secure-storage")
+
     def test_api(self):
         result = recommend("A REST API with several endpoints")
         self.assertEqual(result["recommended_blueprint"], "serverless-api")
