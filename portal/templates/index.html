@@ -97,7 +97,7 @@
                 <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="1000" placeholder="Describe the workload, data sensitivity, and expected usage."></textarea>
               </div>
               <button class="btn btn-brand w-100 py-2" type="submit">Submit infrastructure request →</button>
-              <p class="text-muted small mt-3 mb-0">OPA validates the requested region and budget. Terraform plan checks and AWS provisioning are not connected yet.</p>
+              <p class="text-muted small mt-3 mb-0">OPA checks request rules and the saved Terraform blueprint source. This is not a plan check or deployment approval.</p>
             </form>
           </section>
         </div>
@@ -117,7 +117,7 @@
             {% if requests %}
               <div class="table-responsive">
                 <table class="table align-middle">
-                  <thead><tr><th>Project</th><th>Blueprint</th><th>Budget</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Project</th><th>Blueprint</th><th>Budget</th><th>Request policy</th><th>Terraform blueprint check</th></tr></thead>
                   <tbody>
                     {% for item in requests %}
                     <tr>
@@ -130,6 +130,16 @@
                           <div class="small text-danger mt-1">{{ reason }}</div>
                         {% endfor %}
                       </td>
+                      <td>
+                        {% if item["config_status"] %}
+                          <span class="badge rounded-pill {% if item["config_status"] == "Configuration validated" %}text-bg-success{% elif item["config_status"] == "Configuration denied" %}text-bg-danger{% else %}text-bg-secondary{% endif %}">{{ item["config_status"] }}</span>
+                          {% for reason in item["config_reasons_list"] %}
+                            <div class="small text-danger mt-1">{{ reason }}</div>
+                          {% endfor %}
+                        {% else %}
+                          <span class="badge text-bg-secondary">Not assessed (legacy)</span>
+                        {% endif %}
+                      </td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -141,7 +151,7 @@
           </section>
         </div>
       </div>
-      <p class="small muted mt-4">ArchitectFlow · Python / Flask / Jinja2 · Request-level OPA checks are active; plan-level security checks and provisioning are future milestones.</p>
+      <p class="small muted mt-4">ArchitectFlow · Python / Flask / Jinja2 · Request and Terraform-source checks are active. Request-specific Terraform plans, cost estimation and provisioning are not implemented.</p>
     </main>
   </div>
 </div>
