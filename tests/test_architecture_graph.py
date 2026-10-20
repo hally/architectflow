@@ -20,6 +20,11 @@ class ArchitectureGraphTests(unittest.TestCase):
         self.assertIsNone(result["recommended_blueprint"])
         self.assertEqual(result["category"], "multiple")
 
+    def test_api_and_documents_needs_clarification(self):
+        result = recommend("We need an API that uploads documents to S3.")
+        self.assertIsNone(result["recommended_blueprint"])
+        self.assertEqual(result["category"], "multiple")
+
     def test_unknown_request(self):
         result = recommend("I need something for the engineering team")
         self.assertIsNone(result["recommended_blueprint"])
