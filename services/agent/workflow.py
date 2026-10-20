@@ -18,7 +18,7 @@ class ArchitectureState(TypedDict, total=False):
 
 
 STORAGE_TERMS = ("document", "file", "bucket", "object storage", "s3", "upload")
-API_TERMS = ("rest api", "web api", "endpoint", "lambda", "api gateway", "backend api")
+API_TERMS = ("api", "rest api", "web api", "endpoint", "lambda", "api gateway", "backend api")
 
 
 def classify(state: ArchitectureState) -> dict:
