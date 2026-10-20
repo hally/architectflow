@@ -32,3 +32,7 @@ portal/instance/
 
 # Generated local Terraform source inspection reports
 build/
+
+# Local Flask runtime data
+instance/
+
