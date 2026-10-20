@@ -1,0 +1,7 @@
+{
+  "project_name": "Customer Portal",
+  "owner": "Engineering",
+  "blueprint": "secure-storage",
+  "region": "ca-central-1",
+  "budget": 150
+}
