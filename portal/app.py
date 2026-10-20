@@ -10,7 +10,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from infra_policy import inspect_blueprint
 
 app = Flask(__name__)
@@ -85,6 +85,11 @@ def initialize_database():
             conn.execute(
                 "ALTER TABLE infrastructure_requests ADD COLUMN config_reasons TEXT"
             )
+        # Nullable fields preserve historical requests unchanged.
+        for column in ("planner_requirements", "planner_category", "planner_blueprint",
+                       "planner_explanation", "planner_method"):
+            if column not in existing_columns:
+                conn.execute(f"ALTER TABLE infrastructure_requests ADD COLUMN {column} TEXT")
 
 
 def evaluate_policy(payload):
@@ -161,15 +166,28 @@ def home():
             # Blueprint inspection is independent from the request policy.
             # It checks the checked-in module source, not planned AWS changes.
             config_status, config_reasons = inspect_blueprint(blueprint)
+            planner = session.pop("architecture_recommendation", None)
+            # Attribute a recommendation only if the selected blueprint matches.
+            matched = (
+                isinstance(planner, dict)
+                and planner.get("recommended_blueprint") == blueprint
+                and blueprint in BLUEPRINTS
+            )
+            audit = planner if matched else {}
             with db_connection() as conn:
                 conn.execute(
                     """INSERT INTO infrastructure_requests
                     (project_name, owner, blueprint, region, environment, budget,
-                     notes, status, policy_reasons, config_status, config_reasons, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     notes, status, policy_reasons, config_status, config_reasons,
+                     planner_requirements, planner_category, planner_blueprint,
+                     planner_explanation, planner_method, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (project_name, owner, blueprint, region, environment, budget,
                      notes, status, json.dumps(reasons), config_status,
                      json.dumps(config_reasons),
+                     audit.get("requirements"), audit.get("category"),
+                     audit.get("recommended_blueprint"), audit.get("explanation"),
+                     "LangGraph / deterministic rules v1" if matched else None,
                      datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
                 )
             flash(f"Request saved: {status}.", "success" if status == "Request policy approved" else "warning")
@@ -221,6 +239,12 @@ def recommend_blueprint():
         app.logger.exception("LangGraph recommendation failed")
         flash("Architecture recommendation unavailable. No blueprint was selected.", "danger")
         return redirect(url_for("home"))
+    session["architecture_recommendation"] = {
+        "requirements": requirements,
+        "category": recommendation.get("category"),
+        "recommended_blueprint": recommendation.get("recommended_blueprint"),
+        "explanation": recommendation.get("explanation"),
+    }
     return render_home(recommendation, requirements)
 
 
