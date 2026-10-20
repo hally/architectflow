@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, flash, redirect, render_template, request, url_for
+from infra_policy import inspect_blueprint
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "local-development-only-not-for-production")
@@ -70,6 +71,14 @@ def initialize_database():
         if "policy_reasons" not in existing_columns:
             conn.execute(
                 "ALTER TABLE infrastructure_requests ADD COLUMN policy_reasons TEXT"
+            )
+        if "config_status" not in existing_columns:
+            conn.execute(
+                "ALTER TABLE infrastructure_requests ADD COLUMN config_status TEXT"
+            )
+        if "config_reasons" not in existing_columns:
+            conn.execute(
+                "ALTER TABLE infrastructure_requests ADD COLUMN config_reasons TEXT"
             )
 
 
@@ -144,14 +153,18 @@ def home():
                 "environment": environment,
                 "budget": budget,
             })
+            # Blueprint inspection is independent from the request policy.
+            # It checks the checked-in module source, not planned AWS changes.
+            config_status, config_reasons = inspect_blueprint(blueprint)
             with db_connection() as conn:
                 conn.execute(
                     """INSERT INTO infrastructure_requests
                     (project_name, owner, blueprint, region, environment, budget,
-                     notes, status, policy_reasons, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     notes, status, policy_reasons, config_status, config_reasons, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (project_name, owner, blueprint, region, environment, budget,
-                     notes, status, json.dumps(reasons),
+                     notes, status, json.dumps(reasons), config_status,
+                     json.dumps(config_reasons),
                      datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
                 )
             flash(f"Request saved: {status}.", "success" if status == "Request policy approved" else "warning")
@@ -168,6 +181,10 @@ def home():
             item["reasons"] = json.loads(item.get("policy_reasons") or "[]")
         except (ValueError, TypeError):
             item["reasons"] = []
+        try:
+            item["config_reasons_list"] = json.loads(item.get("config_reasons") or "[]")
+        except (ValueError, TypeError):
+            item["config_reasons_list"] = []
         requests.append(item)
 
     return render_template(
