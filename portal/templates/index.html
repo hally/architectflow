@@ -37,7 +37,7 @@
         <div>
           <div class="eyebrow mb-1">Developer self-service portal</div>
           <h1 class="h3 fw-bold mb-1">Infrastructure requests</h1>
-          <p class="muted mb-0">Request an AWS blueprint and evaluate your request against enterprise policy.</p>
+          <p class="muted mb-0">Describe your infrastructure needs, review a blueprint recommendation, then submit for independent policy checks.</p>
         </div>
         <span class="badge text-bg-light border px-3 py-2">MVP · Local</span>
       </div>
@@ -47,6 +47,33 @@
           <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
         {% endfor %}
       {% endwith %}
+
+      <section class="panel p-4 mb-4" id="architecture-planner">
+        <div class="eyebrow mb-2">Architecture planner · LangGraph (rules-based)</div>
+        <h2 class="h5 fw-bold mb-2">Describe what you want to build</h2>
+        <p class="small muted">Get a catalog recommendation from a deterministic LangGraph workflow. This is not a security approval or a generative AI response.</p>
+        <form method="post" action="{{ url_for('recommend_blueprint') }}">
+          <label class="form-label" for="requirements">Infrastructure requirements</label>
+          <textarea class="form-control mb-3" id="requirements" name="requirements" maxlength="1000" rows="2" required placeholder="e.g. I need encrypted private storage for customer documents.">{{ requirements_text }}</textarea>
+          <button class="btn btn-outline-primary" type="submit">Recommend architecture →</button>
+        </form>
+        {% if recommendation %}
+          <div class="alert {% if recommendation['recommended_blueprint'] %}alert-info{% else %}alert-warning{% endif %} mt-3 mb-0" role="status">
+            <div class="fw-bold mb-1">
+              {% if recommendation['recommended_blueprint'] %}
+                Recommended: {{ blueprints[recommendation['recommended_blueprint']] }}
+              {% else %}
+                Clarification required
+              {% endif %}
+            </div>
+            <div>{{ recommendation['explanation'] }}</div>
+            <div class="small mt-2">{{ recommendation['next_action'] }}</div>
+            {% if recommendation['recommended_blueprint'] %}
+              <div class="small mt-2">Review the preselected blueprint in the request form below, then submit it separately for OPA checks.</div>
+            {% endif %}
+          </div>
+        {% endif %}
+      </section>
 
       <div class="row g-4">
         <div class="col-12 col-xl-5">
@@ -66,7 +93,7 @@
                 <label class="form-label" for="blueprint">Approved blueprint</label>
                 <select class="form-select" id="blueprint" name="blueprint" required>
                   {% for key, label in blueprints.items() %}
-                    <option value="{{ key }}">{{ label }}</option>
+                    <option value="{{ key }}" {% if recommendation and recommendation["recommended_blueprint"] == key %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
               </div>
