@@ -124,7 +124,7 @@
                 <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="1000" placeholder="Describe the workload, data sensitivity, and expected usage."></textarea>
               </div>
               <button class="btn btn-brand w-100 py-2" type="submit">Submit infrastructure request →</button>
-              <p class="text-muted small mt-3 mb-0">OPA checks request rules and the saved Terraform blueprint source. This is not a plan check or deployment approval.</p>
+              <p class="text-muted small mt-3 mb-0">OPA checks request rules and the Terraform blueprint source. A matching LangGraph recommendation is stored with this request. This is not deployment approval.</p>
             </form>
           </section>
         </div>
@@ -144,13 +144,27 @@
             {% if requests %}
               <div class="table-responsive">
                 <table class="table align-middle">
-                  <thead><tr><th>Project</th><th>Blueprint</th><th>Budget</th><th>Request policy</th><th>Terraform blueprint check</th></tr></thead>
+                  <thead><tr><th>Project</th><th>Blueprint</th><th>Budget</th><th>Architecture decision</th><th>Request policy</th><th>Terraform blueprint check</th></tr></thead>
                   <tbody>
                     {% for item in requests %}
                     <tr>
                       <td><strong>{{ item["project_name"] }}</strong><div class="small muted">{{ item["owner"] }} · #{{ item["id"] }}</div></td>
                       <td class="small">{{ blueprints[item["blueprint"]] }}<div class="muted mono">{{ item["region"] }}</div><div class="muted">{{ item["environment"] or "Legacy request" }}</div></td>
                       <td class="small">${{ "%.2f"|format(item["budget"]) }}</td>
+                      <td class="small">
+                        {% if item["planner_method"] %}
+                          <span class="badge text-bg-info">LangGraph recommendation</span>
+                          <details class="mt-2">
+                            <summary class="text-primary">View rationale</summary>
+                            <div class="mt-1"><strong>Requirements:</strong> {{ item["planner_requirements"] }}</div>
+                            <div class="mt-1"><strong>Selected by planner:</strong> {{ blueprints.get(item["planner_blueprint"], item["planner_blueprint"]) }}</div>
+                            <div class="mt-1"><strong>Reason:</strong> {{ item["planner_explanation"] }}</div>
+                            <div class="mt-1 muted">{{ item["planner_method"] }}</div>
+                          </details>
+                        {% else %}
+                          <span class="badge text-bg-secondary">No linked recommendation</span>
+                        {% endif %}
+                      </td>
                       <td>
                         <span class="badge rounded-pill {% if item["status"] == "Request policy approved" %}text-bg-success{% elif item["status"] == "Request policy denied" %}text-bg-danger{% elif item["status"] == "Policy evaluation error" %}text-bg-dark{% else %}status{% endif %}">{{ item["status"] }}</span>
                         {% for reason in item["reasons"] %}
