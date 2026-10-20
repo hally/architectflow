@@ -17,7 +17,7 @@ class ArchitectureState(TypedDict, total=False):
     next_action: str
 
 
-STORAGE_TERMS = ("document", "file", "bucket", "object storage", "s3", "upload")
+STORAGE_TERMS = ("document", "documents", "file", "files", "bucket", "storage", "object storage", "s3", "upload")
 API_TERMS = ("api", "rest api", "web api", "endpoint", "lambda", "api gateway", "backend api")
 
 
