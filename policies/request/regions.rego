@@ -2,11 +2,9 @@ package architectflow.request
 
 import rego.v1
 
-# Default-deny: only explicitly approved regions are allowed.
-default allow := false
-
+# Approved deployment boundaries for the demonstration enterprise.
 approved_regions := {"ca-central-1", "ca-west-1"}
 
-allow if {
+region_allowed if {
     input.region in approved_regions
 }
