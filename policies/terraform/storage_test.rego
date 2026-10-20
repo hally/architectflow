@@ -48,17 +48,29 @@ test_public_bucket_policy_disabled_denied if {
 }
 
 test_missing_encryption_denied if {
-    not allow with input as object.union(compliant, {
-        "resources": object.remove(compliant.resources, {"aws_s3_bucket_server_side_encryption_configuration.documents"})
-    })
+    # object.union recursively merges objects, which would restore the deleted key.
+    # Remove "resources" from the outer object first to replace it entirely.
+    base := object.remove(compliant, {"resources"})
+    resources_without_encryption := object.remove(
+        compliant.resources,
+        {"aws_s3_bucket_server_side_encryption_configuration.documents"}
+    )
+    modified := object.union(base, {"resources": resources_without_encryption})
+    not allow with input as modified
 }
 
 test_missing_tags_denied if {
-    not allow with input as object.union(compliant, {
-        "resources": object.union(compliant.resources, {
-            "aws_s3_bucket.documents": {"bucket": "${var.bucket_name}", "tags": {"Project": "${var.project}"}}
-        })
+    # Replace the bucket resource rather than recursively merging its tags.
+    base := object.remove(compliant, {"resources"})
+    other_resources := object.remove(compliant.resources, {"aws_s3_bucket.documents"})
+    modified_resources := object.union(other_resources, {
+        "aws_s3_bucket.documents": {
+            "bucket": "${var.bucket_name}",
+            "tags": {"Project": "${var.project}"}
+        }
     })
+    modified := object.union(base, {"resources": modified_resources})
+    not allow with input as modified
 }
 
 test_missing_everything_denied if {
