@@ -28,7 +28,7 @@
       <p class="small mb-5" style="color:#9db2cc">Platform Engineering</p>
       <div class="nav-item-text active">▦ &nbsp; Infrastructure requests</div>
       <div class="nav-item-text">◇ &nbsp; Approved blueprints</div>
-      <div class="nav-item-text">♢ &nbsp; Policy decisions (coming soon)</div>
+      <div class="nav-item-text">♢ &nbsp; Policy decisions</div>
       <div class="nav-item-text">◷ &nbsp; Cost analysis (coming soon)</div>
       <div class="mt-5 small" style="color:#9db2cc">Local prototype · No AWS deployments</div>
     </aside>
@@ -37,7 +37,7 @@
         <div>
           <div class="eyebrow mb-1">Developer self-service portal</div>
           <h1 class="h3 fw-bold mb-1">Infrastructure requests</h1>
-          <p class="muted mb-0">Request an approved AWS blueprint and track its review status.</p>
+          <p class="muted mb-0">Request an AWS blueprint and evaluate your request against enterprise policy.</p>
         </div>
         <span class="badge text-bg-light border px-3 py-2">MVP · Local</span>
       </div>
@@ -70,6 +70,14 @@
                   {% endfor %}
                 </select>
               </div>
+              <div class="mb-3">
+                <label class="form-label" for="environment">Environment</label>
+                <select class="form-select" id="environment" name="environment" required>
+                  {% for key, label in environments.items() %}
+                    <option value="{{ key }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
               <div class="row g-3 mb-3">
                 <div class="col-sm-6">
                   <label class="form-label" for="region">AWS region</label>
@@ -89,7 +97,7 @@
                 <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="1000" placeholder="Describe the workload, data sensitivity, and expected usage."></textarea>
               </div>
               <button class="btn btn-brand w-100 py-2" type="submit">Submit infrastructure request →</button>
-              <p class="text-muted small mt-3 mb-0">This stores a local request only. No Terraform plan, policy decision, or AWS resource is created.</p>
+              <p class="text-muted small mt-3 mb-0">OPA validates the requested region and budget. Terraform plan checks and AWS provisioning are not connected yet.</p>
             </form>
           </section>
         </div>
@@ -98,8 +106,8 @@
             <div class="eyebrow mb-2">Overview</div>
             <div class="row text-center g-3">
               <div class="col-4"><div class="fs-2 fw-bold">{{ requests|length }}</div><div class="small muted">Total requests</div></div>
-              <div class="col-4"><div class="fs-2 fw-bold">{{ requests|length }}</div><div class="small muted">Awaiting checks</div></div>
-              <div class="col-4"><div class="fs-2 fw-bold">0</div><div class="small muted">Deployed</div></div>
+              <div class="col-4"><div class="fs-2 fw-bold">{{ pending_count }}</div><div class="small muted">Legacy pending</div></div>
+              <div class="col-4"><div class="fs-2 fw-bold">{{ approved_count }}</div><div class="small muted">Request policy approved</div></div>
             </div>
           </section>
           <section class="panel p-4">
@@ -114,9 +122,14 @@
                     {% for item in requests %}
                     <tr>
                       <td><strong>{{ item["project_name"] }}</strong><div class="small muted">{{ item["owner"] }} · #{{ item["id"] }}</div></td>
-                      <td class="small">{{ blueprints[item["blueprint"]] }}<div class="muted mono">{{ item["region"] }}</div></td>
+                      <td class="small">{{ blueprints[item["blueprint"]] }}<div class="muted mono">{{ item["region"] }}</div><div class="muted">{{ item["environment"] or "Legacy request" }}</div></td>
                       <td class="small">${{ "%.2f"|format(item["budget"]) }}</td>
-                      <td><span class="badge rounded-pill status">{{ item["status"] }}</span></td>
+                      <td>
+                        <span class="badge rounded-pill {% if item["status"] == "Request policy approved" %}text-bg-success{% elif item["status"] == "Request policy denied" %}text-bg-danger{% elif item["status"] == "Policy evaluation error" %}text-bg-dark{% else %}status{% endif %}">{{ item["status"] }}</span>
+                        {% for reason in item["reasons"] %}
+                          <div class="small text-danger mt-1">{{ reason }}</div>
+                        {% endfor %}
+                      </td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -128,7 +141,7 @@
           </section>
         </div>
       </div>
-      <p class="small muted mt-4">ArchitectFlow · Python / Flask / Jinja2 · Policy checks and provisioning are future milestones.</p>
+      <p class="small muted mt-4">ArchitectFlow · Python / Flask / Jinja2 · Request-level OPA checks are active; plan-level security checks and provisioning are future milestones.</p>
     </main>
   </div>
 </div>
