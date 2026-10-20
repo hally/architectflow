@@ -3,5 +3,6 @@
   "owner": "Engineering",
   "blueprint": "secure-storage",
   "region": "ca-central-1",
+  "environment": "development",
   "budget": 150
 }
