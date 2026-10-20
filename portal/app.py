@@ -193,6 +193,9 @@ def home():
             flash(f"Request saved: {status}.", "success" if status == "Request policy approved" else "warning")
             return redirect(url_for("home"))
 
+    planner = session.get("architecture_recommendation")
+    if isinstance(planner, dict):
+        return render_home(planner, planner.get("requirements", ""))
     return render_home()
 
 
@@ -230,8 +233,11 @@ def render_home(recommendation=None, requirements_text=""):
 @app.route("/recommend", methods=["POST"])
 def recommend_blueprint():
     requirements = request.form.get("requirements", "").strip()
-    if not (1 <= len(requirements) <= 1000):
-        flash("Describe your infrastructure requirements (maximum 1,000 characters).", "danger")
+    if not requirements:
+        flash("The Architecture Planner field is empty. Enter requirements in the box above the Recommend architecture button.", "danger")
+        return redirect(url_for("home"))
+    if len(requirements) > 1000:
+        flash("Architecture Planner requirements must be 1,000 characters or fewer.", "danger")
         return redirect(url_for("home"))
     try:
         recommendation = recommend(requirements)
@@ -245,7 +251,7 @@ def recommend_blueprint():
         "recommended_blueprint": recommendation.get("recommended_blueprint"),
         "explanation": recommendation.get("explanation"),
     }
-    return render_home(recommendation, requirements)
+    return redirect(url_for("home"))
 
 
 initialize_database()
