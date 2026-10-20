@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,6 +17,10 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "local-development-only-not-for-production")
 DB_PATH = Path(app.instance_path) / "architectflow.db"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Running "python portal/app.py" puts portal/ (not the repo root) on sys.path.
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from services.agent.workflow import recommend
 OPA_POLICY_DIR = PROJECT_ROOT / "policies" / "request"
 OPA_EXECUTABLE = os.environ.get(
     "OPA_EXECUTABLE", str(Path.home() / "Tools" / "OPA" / "opa.exe")
@@ -170,6 +175,10 @@ def home():
             flash(f"Request saved: {status}.", "success" if status == "Request policy approved" else "warning")
             return redirect(url_for("home"))
 
+    return render_home()
+
+
+def render_home(recommendation=None, requirements_text=""):
     with db_connection() as conn:
         rows = conn.execute(
             "SELECT * FROM infrastructure_requests ORDER BY id DESC"
@@ -190,12 +199,29 @@ def home():
     return render_template(
         "index.html",
         requests=requests,
+        recommendation=recommendation,
+        requirements_text=requirements_text,
         blueprints=BLUEPRINTS,
         regions=REGIONS,
         environments=ENVIRONMENTS,
         pending_count=sum(r["status"] == "Pending validation" for r in requests),
         approved_count=sum(r["status"] == "Request policy approved" for r in requests),
     )
+
+
+@app.route("/recommend", methods=["POST"])
+def recommend_blueprint():
+    requirements = request.form.get("requirements", "").strip()
+    if not (1 <= len(requirements) <= 1000):
+        flash("Describe your infrastructure requirements (maximum 1,000 characters).", "danger")
+        return redirect(url_for("home"))
+    try:
+        recommendation = recommend(requirements)
+    except Exception:
+        app.logger.exception("LangGraph recommendation failed")
+        flash("Architecture recommendation unavailable. No blueprint was selected.", "danger")
+        return redirect(url_for("home"))
+    return render_home(recommendation, requirements)
 
 
 initialize_database()
