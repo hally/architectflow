@@ -1,5 +1,7 @@
 # Public release review — ArchitectFlow v1.0
 
+**Project owner: Hamza Ally** · [GitHub: @hally](https://github.com/hally)
+
 ## Intended public statement
 
 **ArchitectFlow is a policy-governed AWS infrastructure design prototype, developed and tested offline.** It provides a Flask portal, deterministic LangGraph blueprint selection, optional Bedrock adapter contract, OPA governance and Terraform-source checks, SQLite audit records, an ECS-ready container and Terraform hosting definitions. The project has **not** been deployed to AWS; no real Bedrock model has been invoked; no automatic provisioning exists.
