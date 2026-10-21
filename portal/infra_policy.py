@@ -65,11 +65,8 @@ def inspect_blueprint(blueprint):
             digest.update(len(content).to_bytes(8, "big"))
             digest.update(content)
 
+            # Evaluate exactly the bytes that contributed to the fingerprint.
             parsed = hcl2.load(io.StringIO(content.decode("utf-8").replace("\r\n", "\n")))
-
-        for path in source_files:
-            with path.open(encoding="utf-8") as stream:
-                parsed = hcl2.load(stream)
             for group in parsed.get("resource", []):
                 for resource_type, instances in group.items():
                     for name, attributes in instances.items():
