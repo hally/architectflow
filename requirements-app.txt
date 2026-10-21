@@ -2,3 +2,4 @@ Flask>=3.1,<4.0
 langgraph>=1.0,<2.0
 python-hcl2>=7.0,<8.0
 gunicorn>=23.0,<24.0
+boto3>=1.35,<2.0
