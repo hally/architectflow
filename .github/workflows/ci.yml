@@ -60,3 +60,21 @@ jobs:
         run: python -m compileall -q portal services scripts tests
       - name: Run architecture planner tests
         run: python -m unittest discover -s tests -v
+
+  container:
+    name: Build and smoke-test ECS container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build application image (offline from AWS)
+        run: docker build --platform linux/amd64 -t architectflow:ci .
+      - name: Verify OPA binary
+        run: docker run --rm --entrypoint opa architectflow:ci version
+      - name: Smoke-test Flask and SQLite wiring
+        run: |
+          docker run --rm -e FLASK_SECRET_KEY=ci-test-only --entrypoint python architectflow:ci \
+            -c "from portal.app import app; r=app.test_client().get('/'); assert r.status_code == 200, r.status_code; print('Flask smoke test passed')"
+      - name: Verify container policy decision
+        run: |
+          docker run --rm -e FLASK_SECRET_KEY=ci-test-only --entrypoint python architectflow:ci \
+            -c "from portal.infra_policy import inspect_blueprint; s, reasons, fingerprint, ts = inspect_blueprint('secure-storage'); assert s == 'Configuration validated', (s, reasons); assert len(fingerprint) == 64; print('OPA and Terraform source provenance smoke test passed')"
