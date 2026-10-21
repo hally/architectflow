@@ -31,7 +31,7 @@ flowchart TD
     Source --> Hash[SHA-256 fingerprint of evaluated source bytes]
     Hash --> Audit
 
-    subgraph AWS hosting target - Terraform definitions only
+    subgraph AWS_TARGET["AWS hosting target — Terraform definitions only"]
       ALB[ACM HTTPS / ALB] --> ECS[ECS Fargate / Docker]
       ECS --> EFS[EFS single-task SQLite storage]
       ECS --> Endpoints[Private AWS VPC endpoints]
