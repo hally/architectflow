@@ -241,7 +241,7 @@ resource "aws_ecs_task_definition" "app" {
       { name = "OPA_EXECUTABLE", value = "/usr/local/bin/opa" }
     ]
     secrets     = var.flask_secret_arn == "" ? [] : [{ name = "FLASK_SECRET_KEY", valueFrom = var.flask_secret_arn }]
-    mountPoints = [{ sourceVolume = "sqlite", containerPath = "/app/instance", readOnly = false }]
+    mountPoints = [{ sourceVolume = "sqlite", containerPath = "/app/portal/instance", readOnly = false }]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
