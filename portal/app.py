@@ -193,7 +193,7 @@ def home():
                      json.dumps(config_reasons),
                      audit.get("requirements"), audit.get("category"),
                      audit.get("recommended_blueprint"), audit.get("explanation"),
-                     "LangGraph / deterministic rules v1" if matched else None,
+                     audit.get("method", "LangGraph / deterministic rules v1") if matched else None,
                      terraform_sha, terraform_checked_at,
                      datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
                 )
@@ -257,6 +257,7 @@ def recommend_blueprint():
         "category": recommendation.get("category"),
         "recommended_blueprint": recommendation.get("recommended_blueprint"),
         "explanation": recommendation.get("explanation"),
+        "method": recommendation.get("method", "LangGraph / deterministic rules v1"),
     }
     return redirect(url_for("home"))
 
