@@ -335,7 +335,9 @@ resource "aws_ecs_task_definition" "app" {
     command      = ["gunicorn", "--chdir", "/app/portal", "--bind", "0.0.0.0:${var.container_port}", "app:app"]
     environment = [
       { name = "PYTHONUNBUFFERED", value = "1" },
-      { name = "OPA_EXECUTABLE", value = "/usr/local/bin/opa" }
+      { name = "OPA_EXECUTABLE", value = "/usr/local/bin/opa" },
+      { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
+      { name = "AWS_REGION", value = var.aws_region }
     ]
     secrets     = var.flask_secret_arn == "" ? [] : [{ name = "FLASK_SECRET_KEY", valueFrom = var.flask_secret_arn }]
     mountPoints = [{ sourceVolume = "sqlite", containerPath = "/app/portal/instance", readOnly = false }]
