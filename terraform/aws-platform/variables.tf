@@ -74,3 +74,9 @@ variable "acm_certificate_arn" {
   default     = ""
 }
 
+
+variable "enable_private_endpoints" {
+  description = "Create private AWS service endpoints (billable). Required when ECS tasks run."
+  type        = bool
+  default     = false
+}
