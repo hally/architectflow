@@ -80,3 +80,9 @@ variable "enable_private_endpoints" {
   type        = bool
   default     = false
 }
+
+variable "bedrock_model_id" {
+  description = "Optional Bedrock Converse model ID or inference profile ID. Empty keeps deterministic recommendations."
+  type        = string
+  default     = ""
+}
