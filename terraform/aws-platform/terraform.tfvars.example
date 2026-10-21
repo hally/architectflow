@@ -1,0 +1,8 @@
+aws_region         = "ca-central-1"
+environment        = "development"
+image_tag          = "v1"
+desired_count      = 0
+flask_secret_arn   = ""
+bedrock_model_arns = []
+alert_email        = ""
+monthly_budget_usd = 35
