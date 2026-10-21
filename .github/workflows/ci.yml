@@ -78,3 +78,15 @@ jobs:
         run: |
           docker run --rm -e FLASK_SECRET_KEY=ci-test-only --entrypoint python architectflow:ci \
             -c "from portal.infra_policy import inspect_blueprint; s, reasons, fingerprint, ts = inspect_blueprint('secure-storage'); assert s == 'Configuration validated', (s, reasons); assert len(fingerprint) == 64; print('OPA and Terraform source provenance smoke test passed')"
+
+  secrets:
+    name: Git history secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan Git history for credential patterns
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --redact --exit-code 1 --no-banner
