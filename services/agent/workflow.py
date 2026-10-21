@@ -3,6 +3,7 @@
 No LLM, AWS credentials, Terraform apply, or deployment authorization.
 Unclear requests require clarification rather than silently choosing a blueprint.
 """
+import os
 import re
 from typing import TypedDict
 
@@ -89,10 +90,42 @@ def build_graph():
 architecture_graph = build_graph()
 
 
-def recommend(requirements: str) -> ArchitectureState:
+def recommend(requirements: str, *, bedrock_client=None) -> ArchitectureState:
+    """Optional Bedrock classification followed by deterministic catalog routing.
+
+    Bedrock cannot select arbitrary resources or override mixed-workload safeguards.
+    If Bedrock is unavailable or malformed, use the verified local classifier.
+    """
     if not isinstance(requirements, str):
         raise TypeError("requirements must be text")
-    return architecture_graph.invoke({"requirements": requirements})
+    baseline = architecture_graph.invoke({"requirements": requirements})
+    baseline["method"] = "LangGraph / deterministic rules v1"
+    if not os.environ.get("BEDROCK_MODEL_ID"):
+        return baseline
+
+    try:
+        from services.agent.bedrock_adapter import classify_with_bedrock
+        category = classify_with_bedrock(requirements, client=bedrock_client)
+        selected = category["category"]
+        # Known mixed-workload requirements must not be silently simplified.
+        if baseline["category"] == "multiple" and selected != "multiple":
+            return {**baseline, "method": "LangGraph / deterministic guardrail (Bedrock disagreement)"}
+        # A disagreement on an unambiguous known category also fails safe.
+        if baseline["category"] in {"storage", "api"} and selected != baseline["category"]:
+            return {**baseline, "method": "LangGraph / deterministic fallback (Bedrock disagreement)"}
+
+        if selected == "storage":
+            result = recommend_storage({"category": selected})
+        elif selected == "api":
+            result = recommend_api({"category": selected})
+        else:
+            result = clarify({"category": selected})
+        return {
+            **baseline, **result, "category": selected,
+            "method": "LangGraph / Bedrock-assisted classification (OPA independent)",
+        }
+    except Exception:
+        return {**baseline, "method": "LangGraph / deterministic fallback (Bedrock unavailable)"}
 
 
 if __name__ == "__main__":
