@@ -1,5 +1,7 @@
 # ArchitectFlow
 
+**Created and maintained by [Hamza Ally](https://github.com/hally)** · Cloud & Enterprise Architecture Portfolio
+
 **An explainable, policy-governed self-service architecture portal for AWS — offline-tested prototype with AWS infrastructure defined in Terraform.**
 
 ArchitectFlow demonstrates an enterprise platform engineering pattern: developers describe what they need; a LangGraph workflow recommends a *catalog blueprint*; Open Policy Agent (OPA) independently checks request governance and Terraform source configuration; and the portal records the results, rationale, and source fingerprint for audit.
@@ -136,6 +138,12 @@ See [portfolio demonstration guide](docs/DEMO.md) for the narrative and precise 
 ## Follow-on work beyond v1.0
 
 An actual AWS account would be needed to validate: Bedrock inference, provider/API behavior, ECR image push, AWS networking connectivity, runtime IAM, ALB TLS/DNS and deployment lifecycle. Production rollout additionally requires identity, CSRF defense, a managed database, request-specific Terraform plans, plan-level policy checks, authorization, immutable evidence, and cost estimation.
+
+## Author
+
+**Hamza Ally** — project owner and architectural lead. ArchitectFlow is an independent portfolio prototype demonstrating platform engineering, cloud infrastructure design, policy-as-code, and explainable architecture decisions.
+
+GitHub: [@hally](https://github.com/hally)
 
 ## License
 
