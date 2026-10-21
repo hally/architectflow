@@ -1,5 +1,7 @@
 # ArchitectFlow v1.0 — Portfolio demonstration guide
 
+**Project by Hamza Ally** · [GitHub: @hally](https://github.com/hally)
+
 **Purpose:** Demonstrate an explainable, policy-governed infrastructure self-service workflow. This is an **offline-tested prototype**. AWS Terraform is defined and validated but not deployed. The default LangGraph workflow is deterministic; the optional Bedrock adapter is tested through contract tests, not live model inference.
 
 ## Suggested 5–7 minute walkthrough
