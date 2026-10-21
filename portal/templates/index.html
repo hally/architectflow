@@ -49,9 +49,9 @@
       {% endwith %}
 
       <section class="panel p-4 mb-4" id="architecture-planner">
-        <div class="eyebrow mb-2">Architecture planner · LangGraph (rules-based)</div>
+        <div class="eyebrow mb-2">Architecture planner · LangGraph (Bedrock optional)</div>
         <h2 class="h5 fw-bold mb-2">Describe what you want to build</h2>
-        <p class="small muted">Get a catalog recommendation from a deterministic LangGraph workflow. This is not a security approval or a generative AI response.</p>
+        <p class="small muted">LangGraph uses deterministic rules by default; Bedrock classification is optional. Recommendations are not security approvals.</p>
         <form method="post" action="{{ url_for('recommend_blueprint') }}">
           <label class="form-label" for="requirements">Infrastructure requirements</label>
           <textarea class="form-control mb-3" id="requirements" name="requirements" maxlength="1000" rows="2" required placeholder="e.g. I need encrypted private storage for customer documents.">{{ requirements_text }}</textarea>
@@ -67,6 +67,7 @@
               {% endif %}
             </div>
             <div>{{ recommendation['explanation'] }}</div>
+            <div class="small mt-1"><strong>Method:</strong> {{ recommendation.get("method", "LangGraph / deterministic rules v1") }}</div>
             <div class="small mt-2">{{ recommendation['next_action'] }}</div>
             {% if recommendation['recommended_blueprint'] %}
               <div class="small mt-2">Review the preselected blueprint in the request form below, then submit it separately for OPA checks.</div>
