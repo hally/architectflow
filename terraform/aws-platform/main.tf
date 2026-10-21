@@ -42,6 +42,15 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "alb" {
+
+  ingress {
+    description = "HTTPS traffic"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   name_prefix = "${local.name}-alb-"
   description = "Public HTTP entry point (demo only)"
   vpc_id      = aws_vpc.main.id
@@ -117,10 +126,33 @@ resource "aws_lb_target_group" "web" {
   }
 }
 
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.web.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "HTTPS is required"
+      status_code  = "403"
+    }
+  }
+}
+
+
+resource "aws_lb_listener" "https" {
+  count = var.acm_certificate_arn != "" ? 1 : 0
+
+  load_balancer_arn = aws_lb.web.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.acm_certificate_arn
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.web.arn
@@ -270,6 +302,12 @@ resource "aws_ecs_service" "app" {
       condition     = var.desired_count == 0 || length(var.flask_secret_arn) > 0
       error_message = "Set flask_secret_arn before starting the ECS service."
     }
+
+    precondition {
+      condition     = var.desired_count == 0 || var.acm_certificate_arn != ""
+      error_message = "An ACM certificate ARN is required before starting ECS tasks."
+    }
+
   }
   name            = local.name
   cluster         = aws_ecs_cluster.app.id
@@ -286,7 +324,7 @@ resource "aws_ecs_service" "app" {
     container_name   = "architectflow"
     container_port   = var.container_port
   }
-  depends_on = [aws_lb_listener.http, aws_efs_mount_target.data]
+  depends_on = [aws_lb_listener.https, aws_efs_mount_target.data]
 }
 
 resource "aws_budgets_budget" "monthly" {

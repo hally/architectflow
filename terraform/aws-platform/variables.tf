@@ -66,3 +66,11 @@ variable "monthly_budget_usd" {
   type    = number
   default = 35
 }
+
+
+variable "acm_certificate_arn" {
+  description = "ARN of an existing ACM certificate for HTTPS on the load balancer."
+  type        = string
+  default     = ""
+}
+
