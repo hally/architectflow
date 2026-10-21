@@ -13,7 +13,9 @@ from pathlib import Path
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from infra_policy import inspect_blueprint
 
-app = Flask(__name__)
+# Preserve Flask's existing local instance path unless an explicit container
+# storage path is supplied. ECS mounts EFS at /app/portal/instance.
+app = Flask(__name__, instance_path=os.environ.get("ARCHITECTFLOW_INSTANCE_PATH"))
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "local-development-only-not-for-production")
 DB_PATH = Path(app.instance_path) / "architectflow.db"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
