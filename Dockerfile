@@ -31,7 +31,8 @@ RUN groupadd --gid 1000 architectflow \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/portal \
-    OPA_EXECUTABLE=/usr/local/bin/opa
+    OPA_EXECUTABLE=/usr/local/bin/opa \
+    ARCHITECTFLOW_INSTANCE_PATH=/app/portal/instance
 
 USER architectflow
 EXPOSE 8000
