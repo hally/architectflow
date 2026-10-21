@@ -1,6 +1,6 @@
 output "load_balancer_url" {
-  description = "HTTP-only demonstration endpoint. Add HTTPS before real usage."
-  value       = "http://${aws_lb.web.dns_name}"
+  description = "HTTPS endpoint; requires ACM certificate and a deployed service."
+  value       = "https://${aws_lb.web.dns_name}"
 }
 
 output "ecr_repository_url" {
