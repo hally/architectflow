@@ -1,3 +1,7 @@
+provider "aws" {
+  region = var.aws_region
+}
+
 data "aws_availability_zones" "available" {
   state = "available"
 }
@@ -25,6 +29,27 @@ resource "aws_subnet" "public" {
   cidr_block              = cidrsubnet(var.vpc_cidr, 4, index(local.azs, each.key))
   map_public_ip_on_launch = false
   tags                    = { Name = "${local.name}-public-${each.key}" }
+}
+
+# Private application subnets have no default internet route.
+resource "aws_subnet" "private" {
+  for_each                = toset(local.azs)
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = each.key
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, index(local.azs, each.key) + 2)
+  map_public_ip_on_launch = false
+  tags                    = { Name = "${local.name}-private-${each.key}" }
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "${local.name}-private-rt" }
+}
+
+resource "aws_route_table_association" "private" {
+  for_each       = aws_subnet.private
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private.id
 }
 
 resource "aws_route_table" "public" {
@@ -87,6 +112,50 @@ resource "aws_security_group" "ecs" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   lifecycle { create_before_destroy = true }
+}
+
+# PrivateLink endpoints support ECS image pulls, logs, secrets and optional
+# Bedrock inference without NAT gateways or public ECS IP addresses.
+# Disabled by default so writing/validating Terraform incurs no endpoint charges.
+locals {
+  interface_endpoint_services = toset(concat(
+    ["ecr.api", "ecr.dkr", "logs", "secretsmanager"],
+    length(var.bedrock_model_arns) > 0 ? ["bedrock-runtime"] : []
+  ))
+}
+
+resource "aws_security_group" "endpoints" {
+  name_prefix = "${local.name}-vpce-"
+  description = "Only ArchitectFlow ECS tasks may reach VPC interface endpoints"
+  vpc_id      = aws_vpc.main.id
+  ingress {
+    description     = "TLS from ECS tasks"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs.id]
+  }
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each            = var.enable_private_endpoints ? local.interface_endpoint_services : toset([])
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.value}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for s in aws_subnet.private : s.id]
+  security_group_ids  = [aws_security_group.endpoints.id]
+  private_dns_enabled = true
+  tags                = { Name = "${local.name}-${replace(each.value, ".", "-")}" }
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  count             = var.enable_private_endpoints ? 1 : 0
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+  tags              = { Name = "${local.name}-s3-gateway" }
 }
 
 resource "aws_security_group" "efs" {
@@ -183,7 +252,7 @@ resource "aws_efs_file_system" "data" {
 }
 
 resource "aws_efs_mount_target" "data" {
-  for_each        = aws_subnet.public
+  for_each        = aws_subnet.private
   file_system_id  = aws_efs_file_system.data.id
   subnet_id       = each.value.id
   security_groups = [aws_security_group.efs.id]
@@ -307,6 +376,10 @@ resource "aws_ecs_service" "app" {
       condition     = var.desired_count == 0 || var.acm_certificate_arn != ""
       error_message = "An ACM certificate ARN is required before starting ECS tasks."
     }
+    precondition {
+      condition     = var.desired_count == 0 || var.enable_private_endpoints
+      error_message = "Enable required private AWS service endpoints before starting ECS tasks."
+    }
 
   }
   name            = local.name
@@ -315,16 +388,16 @@ resource "aws_ecs_service" "app" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
   network_configuration {
-    subnets          = [for s in aws_subnet.public : s.id]
+    subnets          = [for s in aws_subnet.private : s.id]
     security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = true # avoids NAT gateway cost in this demo
+    assign_public_ip = false
   }
   load_balancer {
     target_group_arn = aws_lb_target_group.web.arn
     container_name   = "architectflow"
     container_port   = var.container_port
   }
-  depends_on = [aws_lb_listener.https, aws_efs_mount_target.data]
+  depends_on = [aws_lb_listener.https, aws_efs_mount_target.data, aws_vpc_endpoint.interface, aws_vpc_endpoint.s3]
 }
 
 resource "aws_budgets_budget" "monthly" {
